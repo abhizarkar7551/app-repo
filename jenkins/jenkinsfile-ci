@@ -1,0 +1,47 @@
+pipeline {
+    agent { label 'jenkins-agent' }
+
+    environment {
+        IMAGE_NAME = "myapp"
+        GCP_PROJECT = "prod-project-477306"
+        GCR_REGION = "us"
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        GCR_IMAGE = "${GCR_REGION}.gcr.io/${GCP_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/your-org/app-repo.git'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+            }
+        }
+
+        stage('Push to GCR') {
+            steps {
+                withCredentials([file(credentialsId: 'my-global-sa', variable: 'GCP_KEY')]) {
+                    sh """
+                        gcloud auth activate-service-account --key-file=$GCP_KEY
+                        gcloud auth configure-docker --quiet
+                        docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${GCR_IMAGE}
+                        docker push ${GCR_IMAGE}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "CI Pipeline succeeded. CD will be handled by Argo CD."
+        }
+        failure {
+            echo "CI Pipeline failed."
+        }
+    }
+}
