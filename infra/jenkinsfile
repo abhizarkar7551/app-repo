@@ -1,0 +1,52 @@
+pipeline {
+    agent { label 'jenkins-agent' }
+
+    environment {
+        GOOGLE_APPLICATION_CREDENTIALS = credentials('my-global-sa')
+        TERRAFORM_DIR = 'infra'
+    }
+
+    stages {
+
+        stage('Checkout Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/abhizarkar7551/dev.git'
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                dir("${TERRAFORM_DIR}") {
+                    sh 'terraform init'
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                dir("${TERRAFORM_DIR}") {
+                    sh 'terraform plan -out=tfplan'
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                dir("${TERRAFORM_DIR}") {
+                    input message: "Do you want to APPLY Terraform changes?"
+                    sh 'terraform apply -auto-approve tfplan'
+                }
+            }
+        }
+
+        stage('Terraform Destroy') {
+            steps {
+                dir("${TERRAFORM_DIR}") {
+                    input message: "Do you want to DESTROY Terraform infrastructure?"
+                    sh 'terraform destroy -auto-approve'
+                }
+            }
+        }
+
+    } // end of stages
+}
