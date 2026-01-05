@@ -6,17 +6,19 @@ pipeline {
         GCP_PROJECT = "prod-project-477306"
         GCR_REGION = "us"
         IMAGE_TAG = "${BUILD_NUMBER}"
+
         GCR_IMAGE = "${GCR_REGION}.gcr.io/${GCP_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
 
-      
-        CLUSTER_NAME = "gke-standard-cluster"       // replace with your cluster name
-        CLUSTER_ZONE = "us-central1-a"        // replace with your cluster zone
-        DEPLOYMENT_NAME = "admin-deployment" // name of your k8s Deployment
-        CONTAINER_NAME = "admin-container"             // container name inside deployment
-        K8S_NAMESPACE = "dev"                 // your deployment namespace
+        CLUSTER_NAME = "gke-standard-cluster"
+        CLUSTER_ZONE = "us-central1-a"
+        K8S_NAMESPACE = "dev"
+
+        DEPLOYMENT_NAME = "admin-deployment"
+        CONTAINER_NAME = "admin-container"
     }
 
     stages {
+
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/abhizarkar7551/app-repo.git'
@@ -25,20 +27,55 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ./app"
+                sh """
+                  docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ./app
+                """
             }
         }
 
-        stage('Push to GCR') {
+        stage('Push Image to GCR') {
             steps {
                 withCredentials([file(credentialsId: 'my-global-sa', variable: 'GCP_KEY')]) {
                     sh """
-                        gcloud auth activate-service-account --key-file=$GCP_KEY
-                        gcloud auth configure-docker --quiet
-                        docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${GCR_IMAGE}
-                        docker push ${GCR_IMAGE}
+                      gcloud auth activate-service-account --key-file=$GCP_KEY
+                      gcloud config set project ${GCP_PROJECT}
+                      gcloud auth configure-docker ${GCR_REGION}.gcr.io --quiet
+
+                      docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${GCR_IMAGE}
+                      docker push ${GCR_IMAGE}
                     """
                 }
             }
         }
+
+        stage('Deploy to GKE') {
+            steps {
+                withCredentials([file(credentialsId: 'my-global-sa', variable: 'GCP_KEY')]) {
+                    sh """
+                      gcloud auth activate-service-account --key-file=$GCP_KEY
+                      gcloud config set project ${GCP_PROJECT}
+
+                      gcloud container clusters get-credentials ${CLUSTER_NAME} \
+                        --zone ${CLUSTER_ZONE}
+
+                      kubectl set image deployment/${DEPLOYMENT_NAME} \
+                        ${CONTAINER_NAME}=${GCR_IMAGE} \
+                        -n ${K8S_NAMESPACE}
+
+                      kubectl rollout status deployment/${DEPLOYMENT_NAME} \
+                        -n ${K8S_NAMESPACE}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Deployment successful: ${GCR_IMAGE}"
+        }
+        failure {
+            echo "❌ Pipeline failed"
+        }
+    }
 }
