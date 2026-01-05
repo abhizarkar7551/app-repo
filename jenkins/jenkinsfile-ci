@@ -8,7 +8,7 @@ pipeline {
         IMAGE_TAG = "${BUILD_NUMBER}"
         GCR_IMAGE = "${GCR_REGION}.gcr.io/${GCP_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
 
-        # Kubernetes / GKE variables
+      
         CLUSTER_NAME = "gke-standard-cluster"       // replace with your cluster name
         CLUSTER_ZONE = "us-central1-a"        // replace with your cluster zone
         DEPLOYMENT_NAME = "admin-deployment" // name of your k8s Deployment
