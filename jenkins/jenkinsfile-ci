@@ -12,7 +12,7 @@ pipeline {
         CLUSTER_NAME = "gke-standard-cluster"       // replace with your cluster name
         CLUSTER_ZONE = "us-central1-a"        // replace with your cluster zone
         DEPLOYMENT_NAME = "admin-deployment" // name of your k8s Deployment
-        CONTAINER_NAME = "my-app"             // container name inside deployment
+        CONTAINER_NAME = "admin"             // container name inside deployment
         K8S_NAMESPACE = "dev"                 // your deployment namespace
     }
 
