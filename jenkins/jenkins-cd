@@ -1,0 +1,51 @@
+pipeline {
+    agent { label 'jenkins-agent' }
+
+    // Environment variables for deployment
+    environment {
+        IMAGE_NAME = "myapp"
+        GCP_PROJECT = "prod-project-477306"
+        GCR_REGION = "us"
+        IMAGE_TAG = "${params.IMAGE_TAG}"   // Jenkins build number
+        GCR_IMAGE = "${GCR_REGION}.gcr.io/${GCP_PROJECT}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+        CLUSTER_NAME = "gke-standard-cluster"   // your GKE cluster
+        CLUSTER_ZONE = "us-central1-a"          // your cluster zone
+        DEPLOYMENT_NAME = "admin-deployment"    // k8s Deployment
+        CONTAINER_NAME = "admin-container"      // container name in deployment
+        K8S_NAMESPACE = "dev"                   // namespace
+    }
+
+    stages {
+        stage('Deploy to GKE') {
+            steps {
+                // Authenticate with GCP using service account
+                withCredentials([file(credentialsId: 'my-global-sa', variable: 'GCP_KEY')]) {
+                    sh """
+                        echo "Authenticating with GCP..."
+                        gcloud auth activate-service-account --key-file=$GCP_KEY
+                        gcloud config set project ${GCP_PROJECT}
+
+                        echo "Getting GKE credentials..."
+                        gcloud container clusters get-credentials ${CLUSTER_NAME} --zone ${CLUSTER_ZONE}
+
+                        echo "Updating deployment ${DEPLOYMENT_NAME} in namespace ${K8S_NAMESPACE} with image ${GCR_IMAGE}..."
+                        kubectl set image deployment/${DEPLOYMENT_NAME} ${CONTAINER_NAME}=${GCR_IMAGE} -n ${K8S_NAMESPACE}
+                        
+                        echo "Waiting for rollout to complete..."
+                        kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${K8S_NAMESPACE}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ CD Pipeline succeeded: Deployment updated to image tag ${IMAGE_TAG}."
+        }
+        failure {
+            echo "❌ CD Pipeline failed."
+        }
+    }
+}
