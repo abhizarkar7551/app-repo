@@ -48,28 +48,7 @@ pipeline {
             }
         }
 
-        stage('Deploy to GKE') {
-            steps {
-                withCredentials([file(credentialsId: 'my-global-sa', variable: 'GCP_KEY')]) {
-                    sh """
-                      gcloud auth activate-service-account --key-file=$GCP_KEY
-                      gcloud config set project ${GCP_PROJECT}
-
-                      gcloud container clusters get-credentials ${CLUSTER_NAME} \
-                        --zone ${CLUSTER_ZONE}
-
-                      kubectl set image deployment/${DEPLOYMENT_NAME} \
-                        ${CONTAINER_NAME}=${GCR_IMAGE} \
-                        -n ${K8S_NAMESPACE}
-
-                      kubectl rollout status deployment/${DEPLOYMENT_NAME} \
-                        -n ${K8S_NAMESPACE}
-                    """
-                }
-            }
-        }
-    }
-
+      
 post {
     success {
         echo "CI succeeded. Triggering CD pipeline with build number ${BUILD_NUMBER}"
