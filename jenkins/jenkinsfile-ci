@@ -47,13 +47,19 @@ pipeline {
                 }
             }
         }
+    }
 
-      
-post {
-    success {
-        echo "CI succeeded. Triggering CD pipeline with build number ${BUILD_NUMBER}"
-        build job: 'cd-pipeline', parameters: [
-            string(name: 'IMAGE_TAG', value: "${BUILD_NUMBER}")
-        ]
+    post {
+        success {
+            echo "CI succeeded. Triggering CD pipeline with build number ${BUILD_NUMBER}"
+
+            build job: 'cd-pipeline', parameters: [
+                string(name: 'IMAGE_TAG', value: "${BUILD_NUMBER}")
+            ]
+        }
+
+        failure {
+            echo "CI failed. CD pipeline will not be triggered."
+        }
     }
 }
