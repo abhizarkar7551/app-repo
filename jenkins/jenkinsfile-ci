@@ -70,5 +70,14 @@ pipeline {
         }
     }
 
+post {
+    success {
+        echo "CI succeeded. Triggering CD pipeline with build number ${BUILD_NUMBER}"
+        build job: 'CD-Pipeline', parameters: [
+            string(name: 'IMAGE_TAG', value: "${BUILD_NUMBER}")
+        ]
+    }
+}
+
    
 }
